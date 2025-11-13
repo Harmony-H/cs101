@@ -1,44 +1,54 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
-int main() {
-    int n;
-    scanf("%d", &n);
-    srand(time(NULL));
+#define COUNTER_FILE "counter.bin"
 
-    // --- 讀取或建立紀錄單數的 binary file ---
-    FILE *count_fp;
-    int counter = 0;
-    count_fp = fopen("counter.bin", "rb");
-    if (count_fp == NULL) {
-        // 如果沒有檔案，表示第一次執行
-        counter = 1;
+void init_file() {
+    int write_array[1] = {0};
+    FILE *fp = fopen(COUNTER_FILE, "r");
+    if (fp == NULL) {
+        FILE *tmpfp = fopen(COUNTER_FILE, "wb+");
+        fwrite(write_array, sizeof(int), 1, tmpfp);
+        fclose(tmpfp);
     } else {
-        fread(&counter, sizeof(int), 1, count_fp);
-        fclose(count_fp);
-        counter++;  // 每執行一次，單數加一
+        fclose(fp);
     }
+}
 
-    // --- 將新的單數寫回 counter.bin ---
-    count_fp = fopen("counter.bin", "wb");
-    fwrite(&counter, sizeof(int), 1, count_fp);
-    fclose(count_fp);
+int get_counter() {
+    int read_array[1];
+    FILE *tmpfp = fopen(COUNTER_FILE, "rb");
+    fread(read_array, sizeof(int), 1, tmpfp);
+    fclose(tmpfp);
+    return read_array[0];
+}
 
-    // --- 檔名設定 ---
-    char filename[32];
-    sprintf(filename, "lotto[%05d].txt", counter);
-    FILE *fp = fopen(filename, "wt+");
+void set_counter(int counter) {
+    int write_array[1];
+    write_array[0] = counter;
+    FILE *tmpfp = fopen(COUNTER_FILE, "wb");
+    fwrite(write_array, sizeof(int), 1, tmpfp);
+    fclose(tmpfp);
+}
 
-    // --- 取得目前時間 ---
-    time_t now = time(NULL);
-    struct tm *t = localtime(&now);
+void generate_lotto(int n, int counter) {
+    srand(1);
+
+    char lotto_file[32];
+    snprintf(lotto_file, sizeof(lotto_file), "lotto[%05d].txt", counter);
+    FILE *fp = fopen(lotto_file, "wt+");
 
     fprintf(fp, "========= lotto649 =========\n");
     fprintf(fp, "========+ No.%05d +========\n", counter);
-    fprintf(fp, "= %s", asctime(t));  // 顯示時間，例如 "Mon Mar 7 10:11:14 2022"
 
-    // --- 產生號碼 ---
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    char buffer[64];
+    strftime(buffer, sizeof(buffer), "%B %d %Y", tm_info);
+    fprintf(fp, "======%s======\n", buffer);
+
     for (int i = 1; i <= n; i++) {
         int used[72] = {0};
         fprintf(fp, "[%d]:", i);
@@ -53,12 +63,25 @@ int main() {
         fprintf(fp, "\n");
     }
 
-    // --- 未使用的組數以 __ 填充 ---
     for (int i = n + 1; i <= 5; i++) {
         fprintf(fp, "[%d]: __ __ __ __ __ __ __\n", i);
     }
 
     fprintf(fp, "========= csie@CGU =========\n");
     fclose(fp);
+
+}
+
+int main() {
+    int counter;
+    init_file();
+    counter = get_counter();
+
+    int n;
+    scanf("%d", &n);
+
+    generate_lotto(n, ++counter);
+    set_counter(counter);
+
     return 0;
 }
