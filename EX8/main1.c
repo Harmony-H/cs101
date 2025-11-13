@@ -4,25 +4,21 @@
 #include <string.h>
 
 void generate_lotto(int n) {
-    srand(1); // use current time as seed
+    srand(1);
 
-    FILE *fp = fopen("lotto.txt", "wt+");
-    if (!fp) {
-        printf("無法開啟 lotto.txt\n");
-        return;
-    }
-
-    // Get date in "Month day year" format
-    time_t now = time(NULL);
-    struct tm *t = localtime(&now);
-    char date_str[64];
-    strftime(date_str, sizeof(date_str), "%B %d %Y", t); // e.g. "March 13 2025"
+    FILE *fp;
+    fp = fopen("lotto.txt", "wt+");
 
     fprintf(fp, "========= lotto649 =========\n");
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    char buffer[64];
+    strftime(buffer, sizeof(buffer), "%B %d %Y", tm_info);
+    fprintf(fp, "======%s======\n", buffer);
 
     for (int i = 1; i <= n; i++) {
-        int used[70] = {0};
-        fprintf(fp, "%s: [%d]:", date_str, i);
+        int used[72] = {0};
+        fprintf(fp, "[%d]:", i);
         for (int j = 0; j < 7;) {
             int temp = rand() % 69 + 1;
             if (used[temp] == 0) {
@@ -35,68 +31,64 @@ void generate_lotto(int n) {
     }
 
     for (int i = n + 1; i <= 5; i++) {
-        fprintf(fp, "%s: [%d]: __ __ __ __ __ __ __\n", date_str, i);
+        fprintf(fp, "[%d]: __ __ __ __ __ __ __\n", i);
     }
 
     fprintf(fp, "========= csie@CGU =========\n");
+
     fclose(fp);
 }
 
 void check_lotto(int n) {
-    int num1, num2, num3;
-    printf("請輸入中獎號碼三個:");
-    scanf("%1d%1d%1d", &num1, &num2, &num3); // handles input like 579
-    num1 = num1 * 1; // just to use the same type
-    num2 = num2 * 1;
-    num3 = num3 * 1;
-
-    printf("\n輸入中獎號碼為:%02d %02d %02d\n", num1, num2, num3);
-
-    FILE *fp = fopen("lotto.txt", "r");
-    if (!fp) {
-        printf("無法開啟 lotto.txt\n");
-        return;
-    }
-
+    printf("請輸入中獎號碼三個: ");
+    int win_num[3];
+    scanf("%d %d %d", &win_num[0], &win_num[1], &win_num[2]);
+    printf("輸入中獎號碼為: %02d %02d %02d\n", win_num[0], win_num[1], win_num[2]);
     printf("以下為中獎彩卷:\n");
 
-    char line[128];
-    while (fgets(line, sizeof(line), fp)) {
-        // only lines with actual ticket numbers
-        if (strchr(line, '[')) {
-            int nums[7], ticket_num;
-            char date_str[64];
-            int matched = 0;
+    FILE *read_fp;
+    read_fp = fopen("lotto.txt", "r");
 
-            if (sscanf(line, "%[^:]: [%d]: %d %d %d %d %d %d %d",
-                       date_str, &ticket_num,
-                       &nums[0], &nums[1], &nums[2],
-                       &nums[3], &nums[4], &nums[5], &nums[6]) == 9) {
+    char line_buffer[256];
+    char date_str[256] = "";
 
+    while (fgets(line_buffer, sizeof(line_buffer), read_fp) != NULL) {
+        if (strstr(line_buffer, "======") != NULL && strstr(line_buffer, "csie") == NULL) {
+            strcpy(date_str, line_buffer);
+            date_str[strcspn(date_str, "\n")] = 0;
+        }
+
+        if (line_buffer[0] == '[') {
+            int lotto_id;
+            int ticket_nums[7];
+            int parsed_count = sscanf(line_buffer, "[%d]: %d %d %d %d %d %d %d",
+                                      &lotto_id, &ticket_nums[0], &ticket_nums[1],
+                                      &ticket_nums[2], &ticket_nums[3], &ticket_nums[4],
+                                      &ticket_nums[5], &ticket_nums[6]);
+            if (parsed_count == 8) {
+                int match_count = 0;
                 for (int i = 0; i < 7; i++) {
-                    if (nums[i] == num1 || nums[i] == num2 || nums[i] == num3)
-                        matched++;
+                    for (int j = 0; j < 3; j++) {
+                        if (ticket_nums[i] == win_num[j]) {
+                            match_count++;
+                        }
+                    }
                 }
-
-                if (matched > 0) {
-                    printf("售出時間: %s: [%d]:", date_str, ticket_num);
-                    for (int i = 0; i < 7; i++)
-                        printf(" %02d", nums[i]);
-                    printf("\n");
+                if (match_count > 0) {
+                    line_buffer[strcspn(line_buffer, "\n")] = 0;
+                    printf("售出時間%s: %s\n", date_str, line_buffer);
                 }
             }
         }
     }
 
-    fclose(fp);
+    fclose(read_fp);
 }
 
 int main() {
     int n;
     scanf("%d", &n);
-
     generate_lotto(n);
     check_lotto(n);
-
     return 0;
 }
